@@ -27,3 +27,7 @@ ad_integration_membership_software: "adcli"
 
 # The distinguished name of an organizational unit to create the computer account. It can be relative to the Root DSE, or a complete LDAP DN.
 ad_integration_computer_ou: null
+
+# If true, the ad_integration role will synchronize time with the provided server
+# If true then `ad_integration_join_to_dc` variable is required, time will then be synchronized with this AD DC.
+ad_integration_manage_timesync: false

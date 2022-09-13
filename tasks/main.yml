@@ -1,11 +1,15 @@
 # SPDX-License-Identifier: MIT
 ---
-# Put the tasks for your role here.
+
+# join_to_dc is required if manage_timesync is true
+- name: Ensure explicit DC provided with manage timesync is true
+  fail:
+    msg: "ad_integration_join_to_dc must be provided if manage timesync is true"
+  when: ad_integration_manage_timesync | bool and ad_integration_join_to_dc is none
 
 - name: Set platform/version specific variables
   include_tasks: tasks/set_vars.yml
 
-# Examples of some tasks:
 - name: Ensure required packages are installed
   package:
     name: "{{ __ad_integration_packages }}"
@@ -28,6 +32,16 @@
 
 - name: Flush handlers
   meta: flush_handlers
+
+## Execute other roles if applicable
+- name: Manage timesync
+  include_role:
+   name: fedora.linux_system_roles.timesync
+  vars:
+    timesync_ntp_servers:
+      - hostname:  "{{ ad_integration_join_to_dc }}"
+        iburst: yes
+  when: ad_integration_manage_timesync | bool
 
 - name: Join to a specific Domain Controller
   shell: echo {{ ad_integration_password }} | realm join -U {{ ad_integration_user }} --membership-software {{ ad_integration_membership_software }} {{ ad_integration_join_to_dc }}
