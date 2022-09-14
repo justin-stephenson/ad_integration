@@ -31,3 +31,10 @@ ad_integration_computer_ou: null
 # If true, the ad_integration role will synchronize time with the provided server
 # If true then `ad_integration_join_to_dc` variable is required, time will then be synchronized with this AD DC.
 ad_integration_manage_timesync: false
+
+# If true, the ad_integration role will use fedora.linux_system_roles.crypto_policies as needed
+ad_integration_manage_crypto_policies: false
+
+# If true, the ad_integration role will set the crypto policy allowing RC4 encryption.
+# Requires ad_integration_manage_crypto_policies to be set to true
+ad_integration_allow_rc4_crypto: false

@@ -1,11 +1,17 @@
 # SPDX-License-Identifier: MIT
 ---
 
-# join_to_dc is required if manage_timesync is true
+# Validate manage timesync variables
 - name: Ensure explicit DC provided with manage timesync is true
   fail:
     msg: "ad_integration_join_to_dc must be provided if manage timesync is true"
   when: ad_integration_manage_timesync | bool and ad_integration_join_to_dc is none
+
+  # Validate manage crypto variables
+- name: Ensure manage_crypt_policies is set with crypto_allow_rc4
+  fail:
+    msg: "ad_integration_manage_crypto_policies must be true if ad_integration_allow_rc4_crypto is true"
+  when: ad_integration_allow_rc4_crypto | bool and not ad_integration_manage_crypto_policies | bool
 
 - name: Set platform/version specific variables
   include_tasks: tasks/set_vars.yml
@@ -42,6 +48,27 @@
       - hostname:  "{{ ad_integration_join_to_dc }}"
         iburst: yes
   when: ad_integration_manage_timesync | bool
+
+- name: Manage crypto policies
+  include_role:
+   name: fedora.linux_system_roles.crypto_policies
+  vars:
+    crypto_policies_policy: "DEFAULT:AD-SUPPORT"
+  when:
+    - ad_integration_manage_crypto_policies | bool
+    # Fedora and RHEL8+
+    - (ansible_distribution == "Fedora" or (ansible_distribution in ['CentOS', 'RedHat'] and ansible_distribution_version is version('8', '>=')))
+
+## RHEL9 uses the AD-SUPPORT-LEGACY policy for RC4, otherwise AD-SUPPORT allows it
+- name: Enable crypto policy allowing RC4 encryption
+  include_role:
+   name: fedora.linux_system_roles.crypto_policies
+  vars:
+    crypto_policies_policy: "DEFAULT:AD-SUPPORT-LEGACY"
+  when:
+    - ad_integration_allow_rc4_crypto | bool
+    - ansible_distribution in ['CentOS', 'RedHat']
+    - ansible_distribution_version is version('9', '>=')
 
 - name: Join to a specific Domain Controller
   shell: echo {{ ad_integration_password }} | realm join -U {{ ad_integration_user }} --membership-software {{ ad_integration_membership_software }} {{ ad_integration_join_to_dc }}
