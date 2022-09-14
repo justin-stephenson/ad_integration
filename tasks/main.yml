@@ -72,8 +72,12 @@
 
 - name: Join to a specific Domain Controller
   shell: echo {{ ad_integration_password }} | realm join -U {{ ad_integration_user }} --membership-software {{ ad_integration_membership_software }} {{ ad_integration_join_to_dc }}
-  when: ad_integration_join_to_dc is not none
+  when:
+    - ad_integration_join_to_dc is not none
+    - not ansible_check_mode
 
 - name: Perform discovery-based realm join operation
   shell: echo {{ ad_integration_password }} | realm join -U {{ ad_integration_user }} --membership-software {{ ad_integration_membership_software }} {{ ad_integration_realm }}
-  when: ad_integration_join_to_dc is none
+  when:
+    - ad_integration_join_to_dc is none
+    - not ansible_check_mode
