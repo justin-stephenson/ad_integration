@@ -1,77 +1,86 @@
-# Role Name
-![template](https://github.com/linux-system-roles/template/workflows/tox/badge.svg)
+# Direct AD Integration role template (https://github.com/linux-system-roles/template/)
 
-A template for an ansible role which configures some GNU/Linux subsystem or
-service. A brief description of the role goes here.
+An ansible role which configures direct Active Directory integration.
 
 ## Requirements
 
-Any pre-requisites that may not be covered by Ansible itself or the role should
-be mentioned here. For instance, if the role uses the EC2 module, it may be a
-good idea to mention in this section that the `boto` package is required.
+It is recommended to use the Administrator user to join with Active Directory. If the Administrator user cannot be used, the normal Active Directory user must have sufficient join permissions.
+
+Time must be in sync with Active Directory servers.  The ad_integration role will use the timesync system role for this if the user specifies a parameter that allows the ad_integration role to manage timesync.  Parameters TBD.
+
+RHEL8+ and Fedora no longer support RC4 encryption, it is recommended to enable AES in Active Directory, if not possible then the AD-SUPPORT crypto policy must be enabled.  The ad_integratoin role will use the crypto_policies system role for this if the user specifies a parameter that allows the ad_integration role to manage crypto_policies.
+
+The Linux system must be able to resolve default AD DNS SRV records.
+
+Ports must be opened from Linux to AD:
+
+| Source Port | Destination | Protocol    | Service                                                   |
+|-------------|-------------|-------------|-----------------------------------------------------------|
+| 1024:65535  | 53          | TCP and UDP | DNS                                                       |
+| 1024:65535  | 389         | TCP and UDP | LDAP                                                      |
+| 1024:65535  | 636         | TCP         | LDAPS                                                     |
+| 1024:65535  | 88          | TCP and UDP | Kerberos                                                  |
+| 1024:65535  | 464         | TCP and UDP | Kerberos change/set password (kadmin)                     |
+| 1024:65535  | 3268        | TCP         | LDAP Global Catalog (If "id_provider = ad" is being used) |
+| 1024:65535  | 3269        | TCP         | LDAP Global Catalog SSL                                   |
+| 1024:65535  | 123         | UDP         | NTP (Optional)                                            |
+
 
 ## Role Variables
 
-A description of all input variables (i.e. variables that are defined in
-`defaults/main.yml`) for the role should go here as these form an API of the
-role.
+**Required variables**
+ad_integration_realm: realm/domain name to joinm
 
-Variables that are not intended as input, like variables defined in
-`vars/main.yml`, variables that are read from other roles and/or the global
-scope (ie. hostvars, group vars, etc.) can be also mentioned here but keep in
-mind that as these are probably not part of the role API they may change during
-the lifetime.
+ad_integration_password: The password of the user used to authenticate with when joining the machine to the realm.  Do not use cleartext - use Ansible Vault to encrypt the value.
 
-Example of setting the variables:
+**Optional variables**
+ad_integration_user: The user name to be used to authenticate with when joining the machine to the realm.
+Default: Administrator
 
-```yaml
-template_foo: "oof"
-template_bar: "baz"
-```
+ad_integration_join_to_dc:  an Active Directory domain controller's hostname or IP address may be specified to join via that domain controller directly. If `ad_integration_manage_timesync` is set to true then this variable is required, time will also then be synchronized with this AD DC.
+Default: Not set
 
-### Variables Exported by the Role
+ad_integration_auto_id_mapping: perform automatic UID/GID mapping for users and groups, set to `false` to rely on POSIX attributes already present in Active Directory.
+Default: true
 
-This section is optional.  Some roles may export variables for playbooks to
-use later.  These are analogous to "return values" in Ansible modules.  For
-example, if a role performs some action that will require a system reboot, but
-the user wants to defer the reboot, the role might set a variable like
-`template_reboot_needed: true` that the playbook can use to reboot at a more
-convenient time.
+ad_integration_client_software: Only join realms for which we can use the given client software. Possible values include sssd or winbind. Not all values are supported for all realms.
+Default: Automatic selection
 
-Example:
+ad_integration_membership_software: The software to use when joining to the realm. Possible values include samba or adcli. Not all values are supported for all realms.
+Default: Automatic selection
 
-`template_reboot_needed` - default `false` - if `true`, this means
-a reboot is needed to apply the changes made by the role
+ad_integration_computer_ou: The distinguished name of an organizational unit to create the computer account. It can be relative to the Root DSE, or a complete LDAP DN.
+Default: Default AD computer container
+
+ad_integration_manage_timesync: boolean - default false - If true, the ad_integration role will use fedora.linux_system_roles.timesync. Requires providing a value for `ad_integration_join_to_dc` to use as a time source.
+ 
+ad_integration_manage_crypto_policies: boolean - default false - If true, the ad_integration role will use fedora.linux_system_roles.crypto_policies as needed
+
+ad_integration_allow_rc4_crypto: boolean - default false - If true, the ad_integration role will set the crypto policy allowing RC4 encryption. Requires ad_integration_manage_crypto_policies to be set to true
 
 ## Dependencies
 
-A list of other roles hosted on Galaxy should go here, plus any details in
-regards to parameters that may need to be set for other roles, or variables
-that are used from other roles.
+N/A
 
 ## Example Playbook
 
-Including an example of how to use your role (for instance, with variables
-passed in as parameters) is always nice for users too:
+The following is an example playbook to setup direct Active Directory integration with AD domain “domain.example.com”, the join will be performed with user Administrator using the vault stored password. Prior to the join, the crypto policy for AD SUPPORT with RC4 encryption allowed will be set.
 
 ```yaml
 - hosts: all
   vars:
-    template_foo: "foo foo!"
-    template_bar: "progress bar"
-
+    ad_integration_realm: "domain.example.com"
+    ad_integration_password: !vault | …vault encrypted password…
+    ad_integration_manage_crypto_policies: false
+    ad_integration_allow_rc4_crypto: true
   roles:
-    - linux-system-roles.template
+    - linux-system-roles.ad_integration
 ```
-
-More examples can be provided in the [`examples/`](examples) directory. These
-can be useful especially for documentation.
 
 ## License
 
-Whenever possible, please prefer MIT.
+MIT.
 
 ## Author Information
 
-An optional section for the role authors to include contact information, or a
-website (HTML is not allowed).
+Justin Stephenson (jstephen@redhat.com)
